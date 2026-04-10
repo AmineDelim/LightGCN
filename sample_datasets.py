@@ -4,9 +4,11 @@ import argparse
 
 random.seed(42)
 
-def sample_dataset(dataset_path, user_ratio=0.1):
-    train_file = os.path.join(dataset_path, "train.txt")
-    test_file  = os.path.join(dataset_path, "test.txt")
+def sample_dataset(dataset_name, user_ratio=0.1):
+    src_path = os.path.join("Data_original", dataset_name)
+    dst_path = os.path.join("Data", dataset_name)
+
+    os.makedirs(dst_path, exist_ok=True)
 
     def read_file(path):
         data = {}
@@ -20,11 +22,11 @@ def sample_dataset(dataset_path, user_ratio=0.1):
                 data[uid] = items
         return data
 
-    train_data = read_file(train_file)
-    test_data  = read_file(test_file)
+    train_data = read_file(os.path.join(src_path, "train.txt"))
+    test_data  = read_file(os.path.join(src_path, "test.txt"))
 
     common_users = list(set(train_data.keys()) & set(test_data.keys()))
-    print(f"[{os.path.basename(dataset_path)}] "
+    print(f"[{dataset_name}] "
           f"train_users={len(train_data)}, test_users={len(test_data)}, "
           f"common_users={len(common_users)}")
 
@@ -39,29 +41,29 @@ def sample_dataset(dataset_path, user_ratio=0.1):
         all_items.update(test_data[uid])
     item_remap = {old: new for new, old in enumerate(sorted(all_items))}
 
-    with open(train_file, "w") as f:
+    with open(os.path.join(dst_path, "train.txt"), "w") as f:
         for old_uid in sampled_users:
             new_uid = user_remap[old_uid]
             new_items = [item_remap[i] for i in train_data[old_uid]]
             f.write(f"{new_uid} {' '.join(map(str, new_items))}\n")
 
-    with open(test_file, "w") as f:
+    with open(os.path.join(dst_path, "test.txt"), "w") as f:
         for old_uid in sampled_users:
             new_uid = user_remap[old_uid]
             new_items = [item_remap[i] for i in test_data[old_uid]]
             f.write(f"{new_uid} {' '.join(map(str, new_items))}\n")
 
-    with open(os.path.join(dataset_path, "user_list.txt"), "w") as f:
+    with open(os.path.join(dst_path, "user_list.txt"), "w") as f:
         f.write("org_id remap_id\n")
         for old_uid, new_uid in user_remap.items():
             f.write(f"{old_uid} {new_uid}\n")
 
-    with open(os.path.join(dataset_path, "item_list.txt"), "w") as f:
+    with open(os.path.join(dst_path, "item_list.txt"), "w") as f:
         f.write("org_id remap_id\n")
         for old_item, new_item in item_remap.items():
             f.write(f"{old_item} {new_item}\n")
 
-    print(f"[{os.path.basename(dataset_path)}] "
+    print(f"[{dataset_name}] "
           f"{len(sampled_users)} users, {len(all_items)} items → done")
 
 
@@ -79,8 +81,7 @@ if __name__ == "__main__":
     targets = ALL_DATASETS if args.dataset == "all" else [args.dataset]
 
     for ds in targets:
-        path = os.path.join("Data", ds)
-        if os.path.exists(path):
-            sample_dataset(path, user_ratio=args.ratio)
-        else:
-            print(f"[SKIP] {path} not found")
+        if not os.path.exists(os.path.join("Data_original", ds)):
+            print(f"[SKIP] Data_original/{ds} not found")
+            continue
+        sample_dataset(ds, user_ratio=args.ratio)
